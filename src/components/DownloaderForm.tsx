@@ -50,7 +50,7 @@ export function DownloaderForm({ imported, setImported, onOutput }: {
                 branch: context.branch![0], outputLocation: context.outputLocation![0],
                 outputDirectoryName: context.appSettings![0].outputDirectoryMode === "Custom"
                     ? context.appSettings![0].outputDirectoryName : undefined,
-                noMobileAuth: context.appSettings![0].noMobileAuth, imported: Boolean(imported),
+                noMobileAuth: context.appSettings![0].noMobileAuth, importSource: imported ? source : undefined,
             } }));
         } catch (e) { setStatus(String(e)); }
         finally { setDownloading(false); }

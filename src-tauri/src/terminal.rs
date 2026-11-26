@@ -127,7 +127,8 @@ fn run(job: SteamDownload, app: AppHandle, output: Channel<Vec<u8>>) -> Result<S
         .local_data_dir()
         .map_err(err)?
         .join("SteamDepotDownloaderGUI");
-    let cmd = job.command(&engine_path()?, &cwd)?;
+    let keys = job.imported_key_file()?;
+    let cmd = job.command(&engine_path()?, &cwd, keys.as_deref())?;
     std::fs::create_dir_all(cwd).map_err(err)?;
     let state = app.state::<Mutex<Terminal>>();
     let mut terminal = state.lock().map_err(err)?;

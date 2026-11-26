@@ -1,0 +1,2 @@
+# Preserve unified diff context exactly as it appears in the pinned upstream source.
+src-tauri/verified-depot-keys.patch text eol=lf whitespace=-blank-at-eol

@@ -1,6 +1,6 @@
 <div align="center">
 <h1>SteamDepotDownloaderGUI</h1>
-<h4>A graphical wrapper for DepotDownloader, designed to make downloading older versions of Steam games easy.</h4>
+<h4>Download, verify, and update Steam depots with the bundled DepotDownloaderMod engine. Select a build using manual IDs, SteamDB clipboard input, or a Lua or ZIP file.</h4>
 
 → <a href="https://www.youtube.com/watch?v=H2COwT5OUOo" target="_blank"><b>Tutorial</b></a> ~ 
 <a href="https://depotdownloader.aphex.cc/" target="_blank"><b>Website</b></a> ~ 
@@ -10,7 +10,7 @@
 </h4>
 
 
-<a href="https://img.shields.io/github/last-commit/mmvanheusden/SteamDepotDownloaderGUI?color=crimson"><img src="https://img.shields.io/github/last-commit/mmvanheusden/SteamDepotDownloaderGUI?color=crimson" alt="Last contribution badge"></a>
+<a href="https://img.shields.io/github/last-commit/FDeghy/SteamDepotDownloaderGUI?color=crimson"><img src="https://img.shields.io/github/last-commit/FDeghy/SteamDepotDownloaderGUI?color=crimson" alt="Last contribution badge"></a>
 <a href="https://github.com/FDeghy/SteamDepotDownloaderGUI/releases/latest"><img src="https://img.shields.io/badge/Download -ffbd03?style=for-the-badge&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAABmJLR0QA/wD/AP+gvaeTAAABd0lEQVRoge2XwUrDQBCGPz3Ee++2UBSvdsGbeLHeFX0lPQhei+8g2AfwSVREK+LJ1oqHUGjRQ7Z0laRJNtldKPPBwoTM7D9/sks2IAiCsKrsAK/AC7DtSmTd1cTAKbAJtIAzVyIuDURGvOFKxKUBL4iB0IiB0IiB0IiB0IiB0IiB0IiB0IgBoA08Ak+AKpCvdO6AGn416zBwDGyRGLljuQmlc9pAEzipKl6HgVtgpOMGSYOdlLyOvtfQ1yPgpgb9WlDAEPjRYwj0jet+yv0iy80ru8AHiyazxiewF6jHXPJMeG3+CoiBy5J1/5dTlWVzAXwD5yXrAJho4YlFbdqesFnzsa6PLWr/PD0bFPAA3GO/YXN7WMspLpLnktweVvooMTPiKDPLHabmLCtpmYF3I96v3E55Doz4zWaCaxYb6Bno4udNRMCR1pzr92wmagFfZH+UfI0xycHPim5gE2Pg0Lb5OU2SVzgAph6anmqtHhWevCAIgh9+AdLMtu/CZhHJAAAAAElFTkSuQmCC" alt="Download latest release badge"></a>
 <a href="https://github.com/FDeghy/SteamDepotDownloaderGUI/releases/latest"><img src="https://img.shields.io/github/downloads/FDeghy/SteamDepotDownloaderGUI/total?color=orange&label=downloads" alt="Download count badge"></a>
 
@@ -37,17 +37,14 @@
 > * https://www.youtube.com/watch?v=ogiDAuH3VdY How to download older versions of Subnautica tutorial
 
 ## Installation
-> [!CAUTION]  
-> This GitHub repository is the only official place to download this software.  
-> If you have paid for this software, or downloaded this from a different place than here, **you should reconsider your digital literacy skills, and are at risk of having your Steam account stolen**.
 
+Choose the package for your operating system and processor from the [latest GitHub release](https://github.com/FDeghy/SteamDepotDownloaderGUI/releases/latest).
 
-### Windows
-Download the [latest Windows release](https://github.com/FDeghy/SteamDepotDownloaderGUI/releases/latest).
-
-
-### Linux/Steam Deck
-Download the [latest Linux release](https://github.com/FDeghy/SteamDepotDownloaderGUI/releases/latest).
+| Platform | Package |
+| --- | --- |
+| Windows | Run the `.exe` installer for x64 or ARM64 (`aarch64`). |
+| Linux / Steam Deck | Make the `.AppImage` executable and run it. Choose x64 for Steam Deck or an Intel/AMD PC, or `aarch64` for an ARM64 device. |
+| macOS | Open the `.dmg` and drag the app into Applications. Choose `aarch64` for Apple silicon or x64 for Intel. |
 
 ## Download and update from Lua or ZIP
 
@@ -60,9 +57,15 @@ addappid(90)
 setManifestId(5, "2602921513184876182")
 ```
 
-A ZIP can contain one or more Steam protobuf manifests named `<DepotID>_<ManifestID>.manifest`. Supply the App ID in the ZIP filename (such as `90.zip`) or include a Lua declaration file. The importer checks the embedded depot and manifest IDs, reconciles any Lua declarations, and discards the temporary extracted files after inspection.
+A ZIP can contain a Lua declaration file, Steam protobuf manifests named `<DepotID>_<ManifestID>.manifest`, or both. Supply the App ID in the ZIP filename (such as `90.zip`) or in the Lua file. The importer checks the embedded depot and manifest IDs, reconciles any Lua declarations, and discards the temporary extracted files after inspection.
 
-The GUI passes the IDs to DepotDownloaderMod in one download. Steam supplies the authorized depot keys and download manifests. Imported keys, access tokens and manifest file paths are never passed to the engine. Use a Steam username for restricted depots. Leaving the password empty lets you enter it in the terminal. Anonymous access uses Steam's dedicated-server subscription.
+The GUI passes the IDs to DepotDownloaderMod in one download. A Lua declaration of the form `addappid(DepotID, 1, "64-digit hexadecimal key")` supplies an optional local key for that depot, including when the Lua file is inside a ZIP. The engine checks depot access with Steam and uses a supplied key only when it matches Steam's response. Steam supplies the download manifests and the keys for depots without a local key. Use a Steam username for restricted depots. Leaving the password empty lets you enter it in the terminal. Anonymous access uses Steam's dedicated-server subscription.
+
+### Lua providers
+
+The community directory lists third-party sources for Lua files, including [HubCap](https://hubcapmanifest.com/), [Ryuu](https://generator.ryuu.lol/), [LuaTools](https://lua.tools/), and [DepotBox](https://depotbox.lol/). Check the directory for provider access requirements. [Popular Steam Lua Providers](https://rentry.co/lua-providers)
+
+To use a provider file, select **Import Lua or ZIP…** and check that the preview shows the app and depot manifests you intended. A Lua file containing only depot keys is incomplete for this workflow. The GUI needs a manifest ID for each depot, and Steam determines access through your account or the anonymous subscription.
 
 ## Build from source
 
@@ -73,7 +76,7 @@ pnpm install --frozen-lockfile
 pnpm tauri build
 ```
 
-The Cargo build script checks out the exact DepotDownloaderMod revision in [engine-revision](src-tauri/engine-revision) and publishes a self-contained executable for the Rust target. Tauri bundles that sidecar and its license. Git and NuGet access are required when the engine build runs. A fetch, revision check or publish failure stops the build. The GUI displays the bundled engine's version and commit below the terminal.
+The Cargo build script checks out the exact DepotDownloaderMod revision in [engine-revision](src-tauri/engine-revision), applies the [local key authorization check](src-tauri/verified-depot-keys.patch), and publishes a self-contained executable for the Rust target. Tauri bundles that sidecar and its license. Git and NuGet access are required when the engine build runs. A fetch, revision check, patch or publish failure stops the build. The GUI displays the bundled engine's version and commit below the terminal.
 
 ## Credits
 This software makes use of the following projects:

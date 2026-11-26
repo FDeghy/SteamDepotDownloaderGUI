@@ -21,6 +21,7 @@ try {
     run("git", ["checkout", "--quiet", "--detach", "FETCH_HEAD"]);
     if (execFileSync("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" }).trim() !== revision)
         throw new Error("Unexpected upstream revision");
+    run("git", ["apply", join(root, "verified-depot-keys.patch")]);
 
     run("dotnet", ["publish", "DepotDownloader/DepotDownloaderMod.csproj", "-c", "Release",
         "-p:PathMap=" + cwd + "=/_/DepotDownloaderMod", "-p:DebugType=None",

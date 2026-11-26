@@ -1,7 +1,7 @@
 use prost::Message;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -17,11 +17,13 @@ pub struct Depot {
     pub manifest: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Import {
     pub app_id: String,
     pub depots: Vec<Depot>,
+    #[serde(skip_serializing)]
+    pub depot_keys: HashMap<String, String>,
 }
 
 type Result<T> = std::result::Result<T, String>;
@@ -63,12 +65,13 @@ fn numeric_stem(path: &Path) -> Result<Option<String>> {
 struct Declarations {
     apps: Vec<(String, bool)>,
     depots: Vec<Depot>,
+    depot_keys: Vec<(String, String)>,
 }
 
 fn read_lua(path: &Path) -> Result<Declarations> {
     static APP: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
-        r#"(?ix)^add(?:appid|token)\s*\(\s*([0-9]+)\s*(?:,\s*[0-9]+\s*,\s*(?:"[a-z0-9]+"|'[a-z0-9]+')\s*)?\)"#
+        r#"(?ix)^add(appid|token)\s*\(\s*([0-9]+)\s*(?:,\s*[0-9]+\s*,\s*("[a-z0-9]+"|'[a-z0-9]+')\s*)?\)"#
     ).unwrap()
     });
     static MANIFEST: LazyLock<Regex> = LazyLock::new(|| {
@@ -106,9 +109,13 @@ fn read_lua(path: &Path) -> Result<Declarations> {
             if result.apps.len() == 4096 {
                 return Err("Too many app declarations".into());
             }
-            result
-                .apps
-                .push((valid_id(&m[1], u32::MAX as u64)?, m[0].contains(',')));
+            let id = valid_id(&m[2], u32::MAX as u64)?;
+            let value = m.get(3);
+            if let Some(key) = value.as_ref().filter(|_| m[1].eq_ignore_ascii_case("appid")) {
+                let key = key.as_str().trim_matches(['"', '\'']).to_owned();
+                result.depot_keys.push((id.clone(), key));
+            }
+            result.apps.push((id, value.is_some()));
             rest = &rest[m[0].len()..];
         } else if let Some(m) = MANIFEST.captures(rest) {
             insert(
@@ -172,7 +179,23 @@ impl Declarations {
         {
             return Err("Lua contains another app or a depot without a manifest".into());
         }
-        Ok(Import { app_id, depots })
+        let mut depot_keys = HashMap::new();
+        for (id, key) in self.depot_keys {
+            if !depots.iter().any(|depot| depot.id == id) {
+                continue;
+            }
+            if key.len() != 64 || !key.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                return Err(format!("Depot {id} key must contain 64 hexadecimal digits"));
+            }
+            if depot_keys.insert(id.clone(), key).is_some() {
+                return Err(format!("Multiple keys specified for depot {id}"));
+            }
+        }
+        Ok(Import {
+            app_id,
+            depots,
+            depot_keys,
+        })
     }
 }
 
@@ -304,29 +327,28 @@ fn read_zip(path: &Path) -> Result<Import> {
             insert(&mut manifests, depot)?;
         }
     }
-    if manifests.is_empty() {
-        return Err("ZIP contains no Steam .manifest files".into());
-    }
     lua.unwrap_or_default().resolve(hint, manifests)
+}
+
+pub fn read_import(path: &Path) -> Result<Import> {
+    match path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "lua" => read_lua(path)?.resolve(numeric_stem(path)?, vec![]),
+        "zip" => read_zip(path),
+        _ => Err("Select a .lua or .zip file".into()),
+    }
 }
 
 #[tauri::command]
 pub async fn import_download(path: PathBuf) -> Result<Import> {
-    tauri::async_runtime::spawn_blocking(move || {
-        match path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase()
-            .as_str()
-        {
-            "lua" => read_lua(&path)?.resolve(numeric_stem(&path)?, vec![]),
-            "zip" => read_zip(&path),
-            _ => Err("Select a .lua or .zip file".into()),
-        }
-    })
-    .await
-    .map_err(err)?
+    tauri::async_runtime::spawn_blocking(move || read_import(&path))
+        .await
+        .map_err(err)?
 }
 
 #[cfg(test)]
@@ -363,6 +385,26 @@ mod tests {
             "addappid(1)\nsetmanifestid(2,18446744073709551615)",
         ] {
             assert!(lua(source).is_err(), "{source}");
+        }
+    }
+
+    #[test]
+    fn imports_keys_without_exposing_them_in_the_preview() {
+        let key = "aBcD".repeat(16);
+        let source = format!("addappid(90)\naddappid(5, 1, '{key}')\nsetmanifestid(5, 319)");
+        let input = lua(&source).unwrap();
+        assert_eq!(input.depot_keys["5"], key);
+        assert!(!serde_json::to_string(&input).unwrap().contains(&key));
+        assert!(lua(&source.replace(&key, "nothex")).is_err());
+        assert!(lua(&format!("{source}\naddappid(5, 1, '{key}')")).is_err());
+
+        let bytes = manifest();
+        let lua_entry = ("90.lua", source.as_bytes());
+        for entries in [
+            &[lua_entry][..],
+            &[lua_entry, ("5_319.manifest", bytes.as_slice())][..],
+        ] {
+            assert_eq!(archive("90.zip", entries).unwrap().depot_keys["5"], key);
         }
     }
 
