@@ -91,6 +91,11 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      - name: Set up engine SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 9.0.x
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:

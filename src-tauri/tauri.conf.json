@@ -1,6 +1,6 @@
 {
   "productName": "SteamDepotDownloaderGUI",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "identifier": "net.oopium.depotdownloader",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -26,6 +26,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/DepotDownloaderMod"],
+    "resources": ["binaries/DepotDownloaderMod-LICENSE"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -1,7 +1,7 @@
 import {getVersion} from "@tauri-apps/api/app";
-import {invoke} from "@tauri-apps/api/core";
+import type {Terminal} from "@xterm/xterm";
 import {openUrl} from "@tauri-apps/plugin-opener";
-import {useState} from "preact/hooks";
+import {useRef, useState} from "preact/hooks";
 import {DownloaderForm} from "./components/DownloaderForm.tsx";
 import {DownloaderOutput} from "./components/DownloaderOutput.tsx";
 import {Settings} from "./components/Settings.tsx";
@@ -20,6 +20,11 @@ const DEFAULT_APP_SETTINGS: AppSettings = {
 };
 
 
+export interface Imported {
+    appId: string;
+    depots: { id: string; manifest: string }[];
+}
+
 function App() {
 	const username = useState<string>();
 	const password = useState<string>();
@@ -29,6 +34,9 @@ function App() {
 	const branch = useState<string>();
 	const outputLocation = useState<string>();
 	const downloading = useState<boolean>();
+    const terminal = useRef<Terminal | null>(null);
+    const [imported, setImported] = useState<Imported>();
+
 	const showSettings = useState<boolean>(false);
 	const appSettings = useState<AppSettings>(DEFAULT_APP_SETTINGS);
 	
@@ -53,7 +61,7 @@ function App() {
 				<div hidden={showSettings[0]}>
 					<div class="flex justify-center w-full">
 						<div class="inline-flex absolute left-0 pt-1 pl-3">
-							<ClipBoardParserButton disabled={downloading[0]!}/>
+							<ClipBoardParserButton disabled={Boolean(downloading[0] || imported)}/>
 						</div>
 						<div class="mb-1 text-4xl font-bold text-center font-['Hubot_Sans']">
 							Steam Depot Downloader
@@ -61,38 +69,17 @@ function App() {
 					</div>
 					<div class="flex gap-5 justify-between max-h-screen">
 						<div class="pl-3 w-full max-w-1/2">
-							<DownloaderForm />
+							<DownloaderForm imported={imported} setImported={setImported} onOutput={data => terminal.current?.write(new Uint8Array(data))} />
 						</div>
 						<div class="pr-3 w-full max-w-1/2">
-							<DownloaderOutput />
+							<DownloaderOutput terminal={terminal} downloading={Boolean(downloading[0])} />
 						</div>
 					</div>
 				</div>
-				<button tabIndex={-1} type="button" onClick={() => { openUrl(`https://github.com/mmvanheusden/SteamDepotDownloaderGUI/releases/v${appVersion}`).catch((e) => console.error(e)); }} class="absolute right-0 bottom-0 text-white hover:underline">{`v${appVersion}`}</button>
+				<button tabIndex={-1} type="button" onClick={() => { openUrl(`https://github.com/FDeghy/SteamDepotDownloaderGUI/releases/tag/v${appVersion}`).catch((e) => console.error(e)); }} class="absolute right-0 bottom-0 text-white hover:underline">{`v${appVersion}`}</button>
 			</main>
 		</AppContext.Provider>
 	);
 }
 
 export default App;
-
-export async function startDownload(options: {
-	username?: string;
-	password?: string;
-	appId: string;
-	depotId: string;
-	manifestId: string;
-	branch?: string;
-	outputLocation?: string;
-	outputDirectoryName?: string;
-	noMobileAuth: boolean;
-}) {
-	
-	await invoke("download_depotdownloader"); // First make backend download DepotDownloader
-	
-	await invoke("start_download", {
-		steamDownload: {
-			...options
-		}
-	});
-}
